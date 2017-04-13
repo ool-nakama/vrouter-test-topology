@@ -1,7 +1,7 @@
 tosca_definitions_version: cloudify_dsl_1_2
 
 description: >
-  This blueprint is deploy target_vnf reference_vnf management_
+  This blueprint is deploy vrouter management_
   network and dataplane_network.
 
 imports:
@@ -27,9 +27,9 @@ inputs:
   external_network_name:
     type: string
 
-  router_name:
+  mgmt_router_name:
     type: string
-    default: vnf_test_router
+    default: vnf_test_mgmt_router
 
   management_plane_network_name:
     type: string
@@ -39,6 +39,10 @@ inputs:
     type: string
     default: management_plane_subnet
 
+  data_router_name:
+    type: string
+    default: vnf_test_data_router
+
   data_plane_network_name:
     type: string
     default: data_plane_network
@@ -47,52 +51,31 @@ inputs:
     type: string
     default: data_plane_subnet
 
-  target_vnf_port_name:
+  data_plane_cidr:
     type: string
-    default: target_vnf_port
+    default: 12.0.0.0/24
 
-  reference_vnf_port_name:
-    type: string
-    default: reference_vnf_port
 
-  target_vnf_data_plane_port_name:
+  vrouter_port_name:
     type: string
-    default: target_vnf_data_plane_port
+    default: vrouter_port
 
-  reference_vnf_data_plane_port_name:
+  vrouter_data_plane_port_name:
     type: string
-    default: reference_vnf_data_plane_port
+    default: vrouter_data_plane_port
 
   security_group_name:
     type: string
     default: vnf_test_security_group
 
-  keypair_name:
+  vrouter_name:
     type: string
-    default: vnf_test_keypair
+    default: vrouter
 
-  ssh_key_filename:
-    type: string
-    default: ~/.ssh/vnf_test_keypair.pem
-
-  target_vnf_name:
-    type: string
-    default: target_vnf
-
-  target_vnf_image_id:
+  vrouter_image_id:
     type: string
 
-  target_vnf_flavor_id:
-    type: string
-
-  reference_vnf_name:
-    type: string
-    default: reference_vnf
-
-  reference_vnf_image_id:
-    type: string
-
-  reference_vnf_flavor_id:
+  vrouter_flavor_id:
     type: string
 
 dsl_definitions:
@@ -105,68 +88,34 @@ dsl_definitions:
 
 node_templates:
 
-  target_vnf_ip:
+  vrouter_ip:
     type: cloudify.openstack.nodes.FloatingIP
     properties:
       floatingip:
         floating_network_name: { get_input: external_network_name }
       openstack_config: *openstack_configuration
 
-  reference_vnf_ip:
-    type: cloudify.openstack.nodes.FloatingIP
-    properties:
-      floatingip:
-        floating_network_name: { get_input: external_network_name }
-      openstack_config: *openstack_configuration
-
-  target_vnf_host:
+  vrouter_host:
     type: cloudify.openstack.nodes.Server
     properties:
       openstack_config: *openstack_configuration
-      resource_id: { get_input: target_vnf_name }
+      resource_id: { get_input: vrouter_name }
       install_agent: false
       server:
-        image: { get_input: target_vnf_image_id }
-        flavor: { get_input: target_vnf_flavor_id }
+        image: { get_input: vrouter_image_id }
+        flavor: { get_input: vrouter_flavor_id }
       management_network_name: { get_property: [management_plane_network, resource_id] }
     relationships:
-      - target: keypair
-        type: cloudify.openstack.server_connected_to_keypair
-      - target: target_vnf_port
+      - target: vrouter_port
         type: cloudify.openstack.server_connected_to_port
-      - target: target_vnf_data_plane_port
+      - target: vrouter_data_plane_port
         type: cloudify.openstack.server_connected_to_port
 
-  reference_vnf_host:
-    type: cloudify.openstack.nodes.Server
-    properties:
-      openstack_config: *openstack_configuration
-      resource_id: { get_input: reference_vnf_name }
-      install_agent: false
-      server:
-        image: { get_input: reference_vnf_image_id }
-        flavor: { get_input: reference_vnf_flavor_id }
-      management_network_name: { get_property: [management_plane_network, resource_id] }
-    relationships:
-      - target: keypair
-        type: cloudify.openstack.server_connected_to_keypair
-      - target: reference_vnf_port
-        type: cloudify.openstack.server_connected_to_port
-      - target: reference_vnf_data_plane_port
-        type: cloudify.openstack.server_connected_to_port
-
-  keypair:
-    type: cloudify.openstack.nodes.KeyPair
-    properties:
-      resource_id: { get_input: keypair_name }
-      private_key_path: { get_input: ssh_key_filename }
-      openstack_config: *openstack_configuration
-
-  target_vnf_port:
+  vrouter_port:
     type: cloudify.openstack.nodes.Port
     properties:
       openstack_config: *openstack_configuration
-      resource_id: { get_input: target_vnf_port_name }
+      resource_id: { get_input: vrouter_port_name }
     relationships:
       - type: cloudify.relationships.contained_in
         target: management_plane_network
@@ -174,42 +123,14 @@ node_templates:
         target: management_plane_subnet
       - type: cloudify.openstack.port_connected_to_security_group
         target: security_group
-      - target: target_vnf_ip
+      - target: vrouter_ip
         type: cloudify.openstack.port_connected_to_floating_ip
 
-  reference_vnf_port:
+  vrouter_data_plane_port:
     type: cloudify.openstack.nodes.Port
     properties:
       openstack_config: *openstack_configuration
-      resource_id: { get_input: reference_vnf_port_name }
-    relationships:
-      - type: cloudify.relationships.contained_in
-        target: management_plane_network
-      - type: cloudify.relationships.depends_on
-        target: management_plane_subnet
-      - type: cloudify.openstack.port_connected_to_security_group
-        target: security_group
-      - target: reference_vnf_ip
-        type: cloudify.openstack.port_connected_to_floating_ip
-
-  target_vnf_data_plane_port:
-    type: cloudify.openstack.nodes.Port
-    properties:
-      openstack_config: *openstack_configuration
-      resource_id: { get_input: target_vnf_data_plane_port_name }
-    relationships:
-      - type: cloudify.relationships.contained_in
-        target: data_plane_network
-      - type: cloudify.relationships.depends_on
-        target: data_plane_subnet
-      - type: cloudify.openstack.port_connected_to_security_group
-        target: security_group
-
-  reference_vnf_data_plane_port:
-    type: cloudify.openstack.nodes.Port
-    properties:
-      openstack_config: *openstack_configuration
-      resource_id: { get_input: reference_vnf_data_plane_port_name }
+      resource_id: { get_input: vrouter_data_plane_port_name }
     relationships:
       - type: cloudify.relationships.contained_in
         target: data_plane_network
@@ -226,8 +147,6 @@ node_templates:
       security_group:
         description: Security group for vnf test
       rules:
-        - port: 22
-          remote_ip_prefix: 0.0.0.0/0
         - protocol: icmp
           port_range_min: 0
           port_range_max: 0
@@ -241,7 +160,6 @@ node_templates:
           port_range_max: 65535
           remote_ip_prefix: 0.0.0.0/0
 
-
   management_plane_subnet:
     type: cloudify.openstack.nodes.Subnet
     properties:
@@ -253,7 +171,7 @@ node_templates:
     relationships:
       - target: management_plane_network
         type: cloudify.relationships.contained_in
-      - target: router
+      - target: mgmt_router
         type: cloudify.openstack.subnet_connected_to_router
 
   management_plane_network:
@@ -268,12 +186,13 @@ node_templates:
       resource_id: { get_input: data_plane_subnet_name }
       subnet:
         ip_version: 4
-        cidr: 12.0.0.0/24
-        gateway_ip: null
+        cidr: { get_input: data_plane_cidr }
       openstack_config: *openstack_configuration
     relationships:
       - target: data_plane_network
         type: cloudify.relationships.contained_in
+      - target: data_router
+        type: cloudify.openstack.subnet_connected_to_router
 
   data_plane_network:
     type: cloudify.openstack.nodes.Network
@@ -281,10 +200,19 @@ node_templates:
       resource_id: { get_input: data_plane_network_name }
       openstack_config: *openstack_configuration
 
-  router:
+  mgmt_router:
     type: cloudify.openstack.nodes.Router
     properties:
-      resource_id: { get_input: router_name }
+      resource_id: { get_input: mgmt_router_name }
+      openstack_config: *openstack_configuration
+    relationships:
+      - target: external_network
+        type: cloudify.relationships.connected_to
+
+  data_router:
+    type: cloudify.openstack.nodes.Router
+    properties:
+      resource_id: { get_input: data_router_name }
       openstack_config: *openstack_configuration
     relationships:
       - target: external_network
@@ -302,15 +230,9 @@ outputs:
   vnfs:
     description: Infomation of vnf.
     value:
-      target_vnf:
-        vnf_name: { get_property: [ target_vnf_host, resource_id ] }
-        floating_ip: { get_attribute: [ target_vnf_ip, floating_ip_address ] }
-        public_key_path: { get_property: [ keypair, private_key_path ] }
-
-      reference_vnf:
-        vnf_name: { get_property: [ reference_vnf_host, resource_id ] }
-        floating_ip: { get_attribute: [ reference_vnf_ip, floating_ip_address ] }
-        public_key_path: { get_property: [ keypair, private_key_path ] }
+      vrouter:
+        vnf_name: { get_property: [ vrouter_host, resource_id ] }
+        floating_ip: { get_attribute: [ vrouter_ip, floating_ip_address ] }
 
   networks:
     description: Infomation of network.
@@ -319,3 +241,4 @@ outputs:
         network_name: { get_property: [ management_plane_network, resource_id ] }
       data_plane_network:
         network_name: { get_property: [ data_plane_network, resource_id ] }
+
