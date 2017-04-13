@@ -68,6 +68,14 @@ inputs:
     type: string
     default: vnf_test_security_group
 
+  keypair_name:
+    type: string
+    default: vnf_test_keypair
+
+  ssh_key_filename:
+    type: string
+    default: ~/.ssh/vnf_test_keypair.pem
+
   vrouter_name:
     type: string
     default: vrouter
@@ -106,10 +114,19 @@ node_templates:
         flavor: { get_input: vrouter_flavor_id }
       management_network_name: { get_property: [management_plane_network, resource_id] }
     relationships:
+      - target: keypair
+        type: cloudify.openstack.server_connected_to_keypair
       - target: vrouter_port
         type: cloudify.openstack.server_connected_to_port
       - target: vrouter_data_plane_port
         type: cloudify.openstack.server_connected_to_port
+
+  keypair:
+    type: cloudify.openstack.nodes.KeyPair
+    properties:
+      resource_id: { get_input: keypair_name }
+      private_key_path: { get_input: ssh_key_filename }
+      openstack_config: *openstack_configuration
 
   vrouter_port:
     type: cloudify.openstack.nodes.Port
@@ -233,6 +250,7 @@ outputs:
       vrouter:
         vnf_name: { get_property: [ vrouter_host, resource_id ] }
         floating_ip: { get_attribute: [ vrouter_ip, floating_ip_address ] }
+        public_key_path: { get_property: [ keypair, private_key_path ] }
 
   networks:
     description: Infomation of network.
