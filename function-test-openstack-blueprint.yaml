@@ -151,6 +151,10 @@ node_templates:
       openstack_config: *openstack_configuration
       resource_id: { get_input: vrouter_data_plane_port_name }
     relationships:
+      - type: cloudify.relationships.contained_in
+        target: data_plane_network
+      - type: cloudify.relationships.depends_on
+        target: data_plane_subnet
       - type: cloudify.openstack.port_connected_to_security_group
         target: security_group
 
@@ -206,8 +210,6 @@ node_templates:
     relationships:
       - target: data_plane_network
         type: cloudify.relationships.contained_in
-      - target: data_router
-        type: cloudify.openstack.subnet_connected_to_router
 
   data_plane_network:
     type: cloudify.openstack.nodes.Network
