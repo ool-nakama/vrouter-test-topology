@@ -112,8 +112,6 @@ node_templates:
       server:
         image: { get_input: vrouter_image_id }
         flavor: { get_input: vrouter_flavor_id }
-        security_groups:
-          - security_group
       management_network_name: { get_property: [management_plane_network, resource_id] }
     relationships:
       - target: keypair
@@ -122,6 +120,8 @@ node_templates:
         type: cloudify.openstack.server_connected_to_port
       - target: vrouter_data_plane_port
         type: cloudify.openstack.server_connected_to_port
+      - target: security_group
+        type: cloudify.openstack.server_connected_to_security_group
 
   keypair:
     type: cloudify.openstack.nodes.KeyPair
@@ -151,10 +151,6 @@ node_templates:
       openstack_config: *openstack_configuration
       resource_id: { get_input: vrouter_data_plane_port_name }
     relationships:
-      - type: cloudify.relationships.contained_in
-        target: data_plane_network
-      - type: cloudify.relationships.depends_on
-        target: data_plane_subnet
       - type: cloudify.openstack.port_connected_to_security_group
         target: security_group
 
@@ -168,7 +164,7 @@ node_templates:
       rules:
         - protocol: icmp
           port_range_min: 0
-          port_range_max: 0
+          port_range_max: 255
           remote_ip_prefix: 0.0.0.0/0
         - protocol: tcp
           port_range_min: 1
@@ -206,6 +202,7 @@ node_templates:
       subnet:
         ip_version: 4
         cidr: { get_input: data_plane_cidr }
+        gateway_ip: null
       openstack_config: *openstack_configuration
     relationships:
       - target: data_plane_network
