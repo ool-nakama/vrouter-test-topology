@@ -112,6 +112,8 @@ node_templates:
       server:
         image: { get_input: vrouter_image_id }
         flavor: { get_input: vrouter_flavor_id }
+        security_groups:
+          - security_group
       management_network_name: { get_property: [management_plane_network, resource_id] }
     relationships:
       - target: keypair
