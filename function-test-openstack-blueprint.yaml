@@ -202,7 +202,6 @@ node_templates:
       subnet:
         ip_version: 4
         cidr: { get_input: data_plane_cidr }
-        gateway_ip: null
       openstack_config: *openstack_configuration
     relationships:
       - target: data_plane_network
